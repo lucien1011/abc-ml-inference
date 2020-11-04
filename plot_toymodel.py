@@ -22,7 +22,7 @@ plot_high = 10.
 nbin = 256
 R = 20
 batch_size = 1
-saved_model_path = 'saved_model/mdn_201103_01/'
+saved_model_path = 'saved_model/mdn_201104_01/'
 plot_dir = os.path.join(saved_model_path,"plot")
 
 bins = [plot_low+ibin*(plot_high-plot_low)/nbin for ibin in range(nbin+1)]
@@ -38,7 +38,7 @@ for r in range(R):
     hists = np.apply_along_axis(lambda x: np.histogram(x, bins=bins, density=1.)[0], 1, x)
     inputs = model.predict(hists)
 
-    ll = [model.calculate_loss(inputs,tf.constant([b])) for b in bins]
+    ll = [tf.reshape(model.calculate_loss(inputs,tf.constant([b])),(1,)) for b in bins]
     plt.plot(bins,ll)
     
     plt.savefig(os.path.join(plot_dir,'toymc_'+str(r)+".png"))
