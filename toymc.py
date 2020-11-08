@@ -9,6 +9,7 @@ class ToyMC(object):
     def simulate(self,shape,poi):
         return self.sampling_func(shape,poi)
 
-def normal_sampling_func(shape,poi):
-    return tfd.Normal(loc=poi, scale=1.).sample(shape)
-toymc_normal = ToyMC(normal_sampling_func)
+def normal_sampling_func(shape,loc,scale=1.):
+    return tfd.Normal(loc=loc,scale=scale).sample(shape)
+
+toymc_normal = normal_sampling_func
