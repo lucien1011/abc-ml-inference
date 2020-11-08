@@ -30,15 +30,16 @@ model = tf.keras.models.load_model(saved_model_path)
 
 for r in range(R):
     plt.clf()
-    pois = tfd.Uniform(low=-5., high=5.).sample([batch_size,])
-    x = tf.transpose(mc.simulate((5000,),pois))
+    means = tfd.Uniform(low=-5., high=5.).sample([batch_size,])
+    sigmas = tfd.Uniform(low=-0., high=1.).sample([batch_size,])
+    x = tf.transpose(toymc_normal((5000,),means,sigmas))
     plt.hist(x,bins,density=1.,)
-    plt.title(label='mean: '+str(pois[0]))
+    plt.title(label='mean, sigma: '+str(means[0])+' '+str(sigmas[0]))
     
     hists = np.apply_along_axis(lambda x: np.histogram(x, bins=bins, density=1.)[0], 1, x)
     inputs = model.predict(hists)
 
-    ll = [tf.reshape(model.calculate_loss(inputs,tf.constant([b])),(1,)) for b in bins]
+    ll = [tf.reshape(model.calculate_loss(inputs,tf.constant([[b,1]])),(1,)) for b in bins]
     plt.plot(bins,ll)
     
     plt.savefig(os.path.join(plot_dir,'toymc_'+str(r)+".png"))
