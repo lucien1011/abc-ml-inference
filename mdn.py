@@ -16,10 +16,10 @@ class MDN(tf.keras.Model):
         self.nul = int((self.nparam*self.nparam-self.nparam)/2)
         self.ncov = self.ndiag + self.nul
         self.input_layer = tfkl.InputLayer(input_shape=(nbin,))
-        self.dense_layer_1 = tfkl.Dense(512,activation='tanh')
-        self.dense_layer_2 = tfkl.Dense(512,activation='tanh')
-        self.dense_layer_3 = tfkl.Dense(512,activation='tanh')
-        self.dense_layer_4 = tfkl.Dense(512,activation='hard_sigmoid')
+        self.dense_layer_1 = tfkl.Dense(512,activation='relu')
+        self.dense_layer_2 = tfkl.Dense(512,activation='relu')
+        self.dense_layer_3 = tfkl.Dense(512,activation='relu')
+        self.dense_layer_4 = tfkl.Dense(512,activation='relu')
         self.dense_layer_5 = tfkl.Dense(self.ndf*(self.nparam+self.ncov)+self.ndf,activation='linear')
         self.reshape_layer = tfkl.Reshape((self.ndf,self.nparam+self.ncov+1))
 
