@@ -7,7 +7,7 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 
-from mdn import MDN
+from model.MDN import MDN
 from mc.NormalGenerator import NormalGenerator
 from utils.mkdir_p import mkdir_p
 
