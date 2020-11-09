@@ -38,17 +38,22 @@ class MDN(tf.keras.Model):
         mean = inputs[:,:,:self.nparam]
         batch = tf.shape(mean)[0]
         rho = inputs[:,:,self.nparam:self.nparam+1]
-
-        ul = tfp.math.fill_triangular(inputs[:,:,self.nparam+1:])
-        u = tf.linalg.set_diag( ul,tf.exp( - 0.5 * tf.linalg.diag_part(ul) ) )
-        
-        batch = tf.shape(mean)[0]
-        mean = tf.reshape(mean,(batch,self.ndf,self.nparam,))
-        rho = tf.reshape(rho,(batch,self.ndf,))
+    
         x = tf.broadcast_to(tf.expand_dims(y,axis=1),(batch,self.ndf,self.nparam),)
-
-        pdf = tfd.MultivariateNormalTriL(mean,u)
-        pdf = tf.math.abs(pdf.prob(x))
+        
+        if self.nparam > 1:
+            mean = tf.reshape(mean,(batch,self.ndf,self.nparam,))
+            rho = tf.reshape(rho,(batch,self.ndf,))
+            ul = tfp.math.fill_triangular(inputs[:,:,self.nparam+1:])
+            u = tf.linalg.set_diag( ul,tf.exp( - 0.5 * tf.linalg.diag_part(ul) ) )
+            pdf = tfd.MultivariateNormalTriL(mean,u)
+            pdf = tf.math.abs(pdf.prob(x))
+        elif self.nparam == 1:
+            mean = tf.reshape(mean,(batch,self.ndf,self.nparam,))
+            rho = tf.reshape(rho,(batch,self.ndf,))
+            sigma = tf.exp(- 0.5 * tf.reshape(inputs[:,:,self.nparam+1:],(batch,self.ndf,self.nparam)))
+            pdf = tfd.Normal(mean,sigma)
+            pdf = tf.reshape(tf.math.abs(pdf.prob(x)),(batch,self.ndf))
 
         rho = tf.nn.softmax(rho,axis=1)
         out = tf.math.multiply(pdf,rho)
