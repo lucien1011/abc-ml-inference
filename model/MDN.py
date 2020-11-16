@@ -22,6 +22,7 @@ class MDN(tf.keras.Model):
         self.dense_layer_4 = tfkl.Dense(512,activation='relu')
         self.dense_layer_5 = tfkl.Dense(self.ndf*(self.nparam+self.ncov)+self.ndf,activation='linear')
         self.reshape_layer = tfkl.Reshape((self.ndf,self.nparam+self.ncov+1))
+        self.epsilon = 1E-7
 
     def call(self,input_tensor,training=False):
         out = self.input_layer(input_tensor)
@@ -57,4 +58,4 @@ class MDN(tf.keras.Model):
 
         rho = tf.nn.softmax(rho,axis=1)
         out = tf.math.multiply(pdf,rho)
-        return tf.reduce_sum(out,axis=1)
+        return tf.reduce_sum(out,axis=1)+self.epsilon

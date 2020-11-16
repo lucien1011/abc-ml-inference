@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from model.MDN import MDN
-from mc.NormalGenerator import NormalGenerator
+from mc.toymodel.NormalGenerator import NormalGenerator
 from utils.mkdir_p import mkdir_p
 
 tfd = tfp.distributions
@@ -31,12 +31,12 @@ contour_x_high = 2.
 contour_y_low = -2.
 contour_y_high = 2.
 
-saved_model_path = 'saved_model/mdn_201109_01'
+saved_model_path = 'saved_model/mdn_201116_03'
 
 # _________________________________________________________________ ||
 # Define TF model and optimizer
 # _________________________________________________________________ ||
-ncomp = 16
+ncomp = 4
 nparam = 2
 model = MDN(nbin,ncomp,nparam)
 optimizer = tf.keras.optimizers.Adam()
