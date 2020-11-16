@@ -17,8 +17,9 @@ class NormalGenerator(BaseGenerator):
 
     def generate(self,batch_size,hist_shape,*args):
         means = tfd.Uniform(low=self.mean_low, high=self.mean_high).sample([batch_size,])
-        sigmas = tfd.Uniform(low=self.sigma_low, high=self.sigma_high).sample([batch_size,])
+        lnsigmas = tfd.Uniform(low=self.sigma_low, high=self.sigma_high).sample([batch_size,])
+        sigmas = tf.math.exp(lnsigmas)
         x = tf.transpose(self.pdf(loc=means,scale=sigmas).sample(hist_shape))
         hists = np.apply_along_axis(lambda x: np.histogram(x, bins=self.bins, density=1.)[0], 1, x)
-        pois = tf.concat([tf.expand_dims(means,axis=1),tf.expand_dims(sigmas,axis=1),],axis=1)
-        return x,hists,pois,means,sigmas
+        pois = tf.concat([tf.expand_dims(means,axis=1),tf.expand_dims(lnsigmas,axis=1),],axis=1)
+        return x,hists,pois,means,lnsigmas

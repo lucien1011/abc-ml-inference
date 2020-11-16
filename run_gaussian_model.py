@@ -49,7 +49,7 @@ plot_high = 10.
 generator = NormalGenerator(
         mean_low = -1,
         mean_high = 1.,
-        sigma_low = 0.,
+        sigma_low = -1.,
         sigma_high = 1.,
         bins = [plot_low+ibin*(plot_high-plot_low)/nbin for ibin in range(nbin+1)],
         )
@@ -83,15 +83,15 @@ bins_sigma = [contour_y_low+ibin*(contour_y_high-contour_y_low)/nContourBins for
 
 for i in range(nDraw):
     plt.clf()
-    x,hists,pois,means,sigmas = generator.generate(1,(sample_size,))
-    plt.title(label='mean, sigma: '+str(means[0].numpy())+' '+str(sigmas[0].numpy()))
+    x,hists,pois,means,lnsigmas = generator.generate(1,(sample_size,))
+    plt.title(label='mean, sigma: '+str(means[0].numpy())+' '+str(lnsigmas[0].numpy()))
     
     inputs = model(hists)
 
     X, Y = np.meshgrid(bins_mean,bins_sigma)
     ll = np.array([[model.calculate_loss(inputs,tf.constant([[X[j][i],Y[j][i]]],dtype=np.float32))[0] for i in range(nContourBins+1)] for j in range(nContourBins+1)])
     c = plt.contour(X,Y,ll)
-    plt.plot(means,sigmas,marker='*',color='red')
+    plt.plot(means,lnsigmas,marker='*',color='red')
     plt.clabel(c, inline=1, fontsize=10)
     plt.grid()
     
