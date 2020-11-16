@@ -13,7 +13,7 @@ class MDNModule(Module):
 
     def begin(self,training,cfg):
         training.model = MDN(self.nfeature,self.ncomp,self.nparam)
-        self.optimizer = tf.keras.optimizers.Adam()
+        self.optimizer = training.optimizer
 
     def analyze(self,data,training,cfg):
         with tf.GradientTape() as tape:
@@ -22,7 +22,7 @@ class MDNModule(Module):
             ll = tf.reduce_mean(ll)
         grad = tape.gradient(ll,training.model.trainable_weights)
         self.optimizer.apply_gradients(zip(grad,training.model.trainable_weights))
-        training.report.misc_str = "Loss: {0:6.2f}".format(ll)
+        training.report.misc_str = "Loss: {0:6.4f}".format(ll)
 
     def end(self,training,cfg):
         training.model.save(os.path.join(cfg.collector.output_path,training.name))

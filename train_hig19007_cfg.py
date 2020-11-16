@@ -11,7 +11,7 @@ from cms.HIG19007.InputModule import InputModule
 
 # ______________________________________________________________________ ||
 verbose         = True
-nepoch          = 150
+nepoch          = 500
 batch_per_tree  = 512
 mass_points     = [1,2,3,4,7,10,15,20,25,30,35,]
 bins            = [float(i)*35./100. for i in range(100+1)]
@@ -46,15 +46,19 @@ elif site.where == site.laptop:
 
 # ______________________________________________________________________ ||
 training_list = [
-        Training("Training_m"+str(m1),ROOTWrapper({m2: os.path.join(input_dir,"HToZZdTo4L_M125_MZd%s_eps1e-2_13TeV_madgraph_pythia8.root"%str(m2)) for m2 in mass_points if m1 != m2 },"passedEvents"),)
+        Training(
+            "Training_m"+str(m1),
+            ROOTWrapper({m2: os.path.join(input_dir,"HToZZdTo4L_M125_MZd%s_eps1e-2_13TeV_madgraph_pythia8.root"%str(m2)) for m2 in mass_points if m1 != m2 },"passedEvents"),
+            optimizer=tf.keras.optimizers.Adam(),
+            )
         for m1 in [4,7,10,15,20,25,30]
         ]
 
 collector = Collector(
-        output_path = "./output/2020-11-11_01/",
+        output_path = "./output/2020-11-16_01/",
         )
 
 modules = [
         InputModule("InputModule",scale=35.),
-        MDNModule(11,8,1),
+        MDNModule(12,8,1),
         ]
