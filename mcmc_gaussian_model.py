@@ -19,11 +19,10 @@ tfkl = tf.keras.layers
 # _________________________________________________________________ ||
 # Configurables
 # _________________________________________________________________ ||
-nbin        = 512
-batch_size  = 5000
+nbin = 512
+nEpoch = 100
+batch_size = 1
 sample_size = 5000
-nparam      = 2
-n_plot      = 20
 
 saved_model_path = 'saved_model/mdn_201116_03'
 
@@ -48,28 +47,51 @@ generator = NormalGenerator(
 # _________________________________________________________________ ||
 # MCMC
 # _________________________________________________________________ ||
+num_chains = 1000
+num_results = 300
+num_plot = 10
 plot_dir = os.path.join(saved_model_path,"plot_sampling/")
-for iplot in range(n_plot):
+
+for iplot in range(num_plot):
+    print("-"*100)
+    print("Draw plot "+str(iplot))
+
     plt.clf()
-    x,hists,pois,_,_ = generator.generate(1,(sample_size,))
-    hists = tf.broadcast_to(hists,(batch_size,hists.shape[1]))
+
+    x,hists,pois,_,_ = generator.generate(batch_size,(sample_size,))
     inputs = model(hists)
+
+    #nparam = df_x.shape[1]
+    #rho = tf.squeeze(inputs[:,:,nparam:nparam+1])
+    #dist = tfp.distributions.Categorical(probs=rho)
+    #sample = dist.sample(num_chains)
+    #mean = tf.reshape(inputs[ibatch,sample,:nparam],(cfg.nparam))
+    #ul = tfp.math.fill_triangular(inputs[ibatch,sample,cfg.nparam+1:])
+    #u = tf.linalg.set_diag( ul,tf.exp( - 0.5 * tf.linalg.diag_part(ul) ) )
+    #u = tf.reshape(u,(cfg.nparam,cfg.nparam))
+    #pdf = tfp.distributions.MultivariateNormalTriL(mean,u)
+    #sample = pdf.sample(1)
+    
+    init_state = np.random.normal(-1.,1.,(num_chains, 2)).astype(np.float32)
+    inputs = tf.broadcast_to(inputs,(num_chains,inputs.shape[1],inputs.shape[2]))
     
     print("Sampling pdf")
-    rho = tf.squeeze(tf.nn.softmax(inputs[:,:,nparam:nparam+1],axis=1))
-    cat_samples = tf.random.categorical(tf.math.log(rho),1)
-    mean = tf.squeeze(tf.gather(inputs[:,:,:nparam],cat_samples,axis=1,batch_dims=1))
-    ul = tf.squeeze(tf.gather(inputs[:,:,:nparam+1],cat_samples,axis=1,batch_dims=1))
-    ul = tfp.math.fill_triangular(ul)
-    u = tf.linalg.set_diag( ul,tf.exp( - 0.5 * tf.linalg.diag_part(ul) ) )
-    pdf = tfp.distributions.MultivariateNormalTriL(mean,u)
-    samples = pdf.sample()
+    samples = tfp.mcmc.sample_chain(
+        num_results=num_results,
+        current_state=init_state,
+        kernel=tfp.mcmc.RandomWalkMetropolis(lambda x: tf.math.log(model.calculate_loss(inputs,x))),
+        num_burnin_steps=10,
+        num_steps_between_results=1,
+        trace_fn=None,
+        seed=42,
+        )
     
-    plot_x_array = samples[:,0].numpy()
-    plot_y_array = samples[:,1].numpy()
+ 
+    plot_x_array = samples[num_results-1,:,0].numpy()
+    plot_y_array = samples[num_results-1,:,1].numpy()
     counts, xedges, yedges, im = plt.hist2d(plot_x_array,plot_y_array,bins=50,range=[[-2.,2.],[-2.,2.],])
     plt.colorbar(im)
-    plt.title("Number of samples: "+str(batch_size))
+    plt.title("Number of samples: "+str(samples.shape[1]))
     plt.plot(pois[:,0],pois[:,1],marker='*',color='red')
-    plt.savefig(os.path.join(plot_dir,"sampling_"+str(iplot)+".png"))
+    plt.savefig(os.path.join(plot_dir,"plot_"+str(iplot)+".png"))
     print("-"*100)

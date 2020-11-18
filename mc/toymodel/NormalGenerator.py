@@ -23,3 +23,9 @@ class NormalGenerator(BaseGenerator):
         hists = np.apply_along_axis(lambda x: np.histogram(x, bins=self.bins, density=1.)[0], 1, x)
         pois = tf.concat([tf.expand_dims(means,axis=1),tf.expand_dims(lnsigmas,axis=1),],axis=1)
         return x,hists,pois,means,lnsigmas
+
+    def generate_by_mean_lnsigma(self,means,lnsigmas,sample_size):
+        sigmas = tf.math.exp(lnsigmas)
+        x = tf.transpose(self.pdf(loc=means,scale=sigmas).sample(sample_size))
+        hists = np.apply_along_axis(lambda x: np.histogram(x, bins=self.bins, density=1.)[0], 1, x)
+        return x,hists

@@ -4,6 +4,8 @@ import tensorflow as tf
 import tensorflow.keras.backend as K
 import tensorflow_probability as tfp
 
+from .Histogram import Histogram
+
 tfd = tfp.distributions
 tfkl = tf.keras.layers
 
@@ -16,6 +18,7 @@ class MDN(tf.keras.Model):
         self.nul = int((self.nparam*self.nparam-self.nparam)/2)
         self.ncov = self.ndiag + self.nul
         self.input_layer = tfkl.InputLayer(input_shape=(nbin,))
+        self.histogram_layer_1 = Histogram(500,[-2.,2.],1)
         self.dense_layer_1 = tfkl.Dense(512,activation='relu')
         self.dense_layer_2 = tfkl.Dense(512,activation='relu')
         self.dense_layer_3 = tfkl.Dense(512,activation='relu')
@@ -26,6 +29,7 @@ class MDN(tf.keras.Model):
 
     def call(self,input_tensor,training=False):
         out = self.input_layer(input_tensor)
+        out = self.histogram_layer_1(out)
         out = self.dense_layer_1(out)
         out = self.dense_layer_2(out)
         out = self.dense_layer_3(out)

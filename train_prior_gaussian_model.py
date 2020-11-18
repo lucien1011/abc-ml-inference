@@ -19,8 +19,8 @@ tfkl = tf.keras.layers
 # _________________________________________________________________ ||
 # Configurables
 # _________________________________________________________________ ||
-nbin = 512
-nEpoch = 100
+n_bin = 512
+n_epoch = 100
 batch_size = 512
 sample_size = 5000
 
@@ -38,7 +38,7 @@ saved_model_path = 'saved_model/mdn_201116_03'
 # _________________________________________________________________ ||
 ncomp = 4
 nparam = 2
-model = MDN(nbin,ncomp,nparam)
+model = MDN(n_bin,ncomp,nparam)
 optimizer = tf.keras.optimizers.Adam()
 
 # _________________________________________________________________ ||
@@ -51,13 +51,13 @@ generator = NormalGenerator(
         mean_high = 1.,
         sigma_low = -1.,
         sigma_high = 1.,
-        bins = [plot_low+ibin*(plot_high-plot_low)/nbin for ibin in range(nbin+1)],
+        bins = [plot_low+ibin*(plot_high-plot_low)/n_bin for ibin in range(n_bin+1)],
         )
 
 # _________________________________________________________________ ||
 # Training
 # _________________________________________________________________ ||
-for i in range(nEpoch):
+for i in range(n_epoch):
     x,hists,pois,_,_ = generator.generate(batch_size,(sample_size,))
     with tf.GradientTape() as tape:
         inputs = model(hists)
