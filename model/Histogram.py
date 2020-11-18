@@ -3,11 +3,20 @@ import tensorflow as tf
 from tensorflow.python.ops.histogram_ops import histogram_fixed_width_bins
 
 class Histogram(tf.keras.layers.Layer):
-    def __init__(self,nbins,value_range,input_axis):
-        super(Histogram, self).__init__()
+    def __init__(self,nbins,value_range,input_axis,*args,**kwargs):
+        super(Histogram, self).__init__(*args,**kwargs)
         self.nbins = nbins
         self.value_range = value_range
         self.input_axis = input_axis
+    
+    def get_config(self):
+        config = super(Histogram,self).get_config().copy()
+        config.update({
+            'nbins': self.nbins,
+            'value_range': self.value_range,
+            'input_axis': self.input_axis,
+        })
+        return config
 
     def build(self, input_shape):
         pass
