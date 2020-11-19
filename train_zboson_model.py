@@ -1,10 +1,7 @@
 import os,uproot
-
 import tensorflow as tf
 import tensorflow_probability as tfp
-
 import numpy as np
-
 import matplotlib.pyplot as plt
 
 from model.FunctionalMDN import build_model,calculate_loss,sample
@@ -21,11 +18,11 @@ tfkl = tf.keras.layers
 # _________________________________________________________________ ||
 n_bin = 512
 n_iter = 1
-n_epoch = 50
+n_epoch = 30
 batch_size = 512
 sample_size = 5000
 
-saved_model_path = 'saved_model/mdn_zboson_201118_01/'
+saved_model_path = 'saved_model/mdn_zboson_201118_02/'
 
 # _________________________________________________________________ ||
 # Define prior
@@ -40,11 +37,11 @@ from mc.generator.GaussianMC import GaussianMC
 mc_gen = GaussianMC()
 
 # _________________________________________________________________ ||
-# Generate data
+# Read data
 # _________________________________________________________________ ||
-true_mean = prior_mean.sample()
-true_sigma = prior_sigma.sample()
-data = mc_gen.generate(true_mean,true_sigma,sample_size)
+rootfile = uproot.open("/Users/lucien/CMS/NTuple/lucien/Higgs/DarkZ-NTuple/20181116/SkimTree_DarkPhoton_ZX_Run2016Data_m4l70/DYJetsToLL_M-50_TuneCUETP8M1_13TeV-amcatnloFXFX-pythia8.root")
+tree = rootfile["passedEvents"]
+data = (tree.array("massZ1")-90.)/10.
 data = np.expand_dims(data,axis=0)
 
 # _________________________________________________________________ ||
@@ -130,14 +127,12 @@ bins_mean = [contour_x_low+ibin*(contour_x_high-contour_x_low)/n_contour_bins fo
 bins_sigma = [contour_y_low+ibin*(contour_y_high-contour_y_low)/n_contour_bins for ibin in range(n_contour_bins+1)]
 
 plt.clf()
-plt.title(label='mean, sigma: '+str(true_mean)+" "+str(true_sigma))
-
 inputs = model(data)
 
 X, Y = np.meshgrid(bins_mean,bins_sigma)
 ll = np.array([[calculate_loss(inputs,tf.constant([[X[j][i],Y[j][i]]],dtype=np.float32),nparam,ncomp)[0] for i in range(n_contour_bins+1)] for j in range(n_contour_bins+1)])
 c = plt.contour(X,Y,ll)
-plt.plot(true_mean,true_sigma,marker='*',color='red')
+plt.plot(np.mean(data),np.std(data),marker='*',color='red')
 plt.clabel(c, inline=1, fontsize=10)
 plt.grid()
 plt.savefig(os.path.join(plot_dir,'plot2d.png'))

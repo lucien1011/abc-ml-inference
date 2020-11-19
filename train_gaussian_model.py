@@ -1,4 +1,4 @@
-import os
+import os,uproot
 
 import tensorflow as tf
 import tensorflow_probability as tfp
@@ -7,7 +7,7 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 
-from model.MDN import MDN
+from model.FunctionalMDN import build_model,calculate_loss,sample
 from mc.toymodel.NormalGenerator import NormalGenerator
 from utils.mkdir_p import mkdir_p
 
@@ -20,79 +20,124 @@ tfkl = tf.keras.layers
 # Configurables
 # _________________________________________________________________ ||
 n_bin = 512
-n_epoch = 100
+n_iter = 1
+n_epoch = 50
 batch_size = 512
 sample_size = 5000
 
-nDraw = 20
-nContourBins = 40
-contour_x_low = -2.
-contour_x_high = 2.
-contour_y_low = -2.
-contour_y_high = 2.
+saved_model_path = 'saved_model/mdn_zboson_201118_01/'
 
-saved_model_path = 'saved_model/mdn_201116_03'
+# _________________________________________________________________ ||
+# Define prior
+# _________________________________________________________________ ||
+prior_mean = tfd.Normal(loc=0.,scale=1.)
+prior_sigma = tfd.Normal(loc=1.,scale=0.1)
+
+# _________________________________________________________________ ||
+# Define MC generator
+# _________________________________________________________________ ||
+from mc.generator.GaussianMC import GaussianMC
+mc_gen = GaussianMC()
+
+# _________________________________________________________________ ||
+# Generate data
+# _________________________________________________________________ ||
+true_mean = prior_mean.sample()
+true_sigma = prior_sigma.sample()
+data = mc_gen.generate(true_mean,true_sigma,sample_size)
+data = np.expand_dims(data,axis=0)
 
 # _________________________________________________________________ ||
 # Define TF model and optimizer
 # _________________________________________________________________ ||
 ncomp = 4
 nparam = 2
-model = MDN(n_bin,ncomp,nparam)
+model = build_model(n_bin,ncomp,nparam)
 optimizer = tf.keras.optimizers.Adam()
 
 # _________________________________________________________________ ||
-# Define MC generator
+# Train prior
 # _________________________________________________________________ ||
-plot_low = -10.
-plot_high = 10.
-generator = NormalGenerator(
-        mean_low = -1,
-        mean_high = 1.,
-        sigma_low = -1.,
-        sigma_high = 1.,
-        bins = [plot_low+ibin*(plot_high-plot_low)/n_bin for ibin in range(n_bin+1)],
-        )
-
-# _________________________________________________________________ ||
-# Training
-# _________________________________________________________________ ||
+print("-"*100)
+print("Training prior")
+prior_t_mean = prior_mean
+prior_t_sigma = prior_sigma
+prop_mean = prior_t_mean.sample(batch_size)
+prop_sigma = prior_t_sigma.sample(batch_size)
+pois = np.concatenate([np.expand_dims(prop_mean,axis=1),np.expand_dims(prop_sigma,axis=1)],axis=1,)
 for i in range(n_epoch):
-    x,hists,pois,_,_ = generator.generate(batch_size,(sample_size,))
+    x = mc_gen.generate(prop_mean,prop_sigma,sample_size)
     with tf.GradientTape() as tape:
-        inputs = model(hists)
-        ll = tf.math.abs(tf.math.log(model.calculate_loss(inputs,pois)))
+        inputs = model(x)
+        ll = tf.math.abs(tf.math.log(
+            calculate_loss(inputs,pois,nparam,ncomp))
+            )
         ll = tf.reduce_mean(ll)
     if i % 10 == 0: print("Epoch ",i,ll)
     grad = tape.gradient(ll,model.trainable_weights)
     optimizer.apply_gradients(zip(grad,model.trainable_weights))
+prior_t = tf.keras.models.clone_model(model)
+print("-"*100)
 
 # _________________________________________________________________ ||
-# Saving
+# Train model
 # _________________________________________________________________ ||
-model.save(saved_model_path)
+print("-"*100)
+print("Training model")
+for it in range(n_iter):
+    
+    print("="*100)
+    print("Iteration "+str(it))
+    print("="*100)
+    
+    data_inputs = prior_t(data)
+    pois = sample(data_inputs,sample_size,nparam) # shape: (batch_size,nparam)
+    prop_mean = pois[:,0]
+    prop_sigma = pois[:,1]
+
+    for i in range(n_epoch):
+
+        x = mc_gen.generate(prop_mean,prop_sigma,sample_size)
+        with tf.GradientTape() as tape:
+            inputs = model(x)
+            ll = tf.math.abs(tf.math.log(calculate_loss(inputs,pois,nparam,ncomp)))
+            ll *= prior_mean.prob(prop_mean)
+            ll *= prior_sigma.prob(prop_sigma) 
+            ll /= calculate_loss(tf.broadcast_to(data_inputs,(sample_size,data_inputs.shape[1],data_inputs.shape[2])),pois,nparam,ncomp)
+            ll = tf.reduce_mean(ll)
+        if i % 10 == 0: print("Epoch ",i,ll)
+        grad = tape.gradient(ll,model.trainable_weights)
+        optimizer.apply_gradients(zip(grad,model.trainable_weights))
+
+    prior_t = tf.keras.models.clone_model(model)
+print("-"*100)
+
+model.save(saved_model_path+"posterior")
 
 # _________________________________________________________________ ||
-# Draw validation contour
+# Draw posterior
 # _________________________________________________________________ ||
-plot_dir = os.path.join(saved_model_path,"plot")
+n_contour_bins = 40
+contour_x_low = -4.
+contour_x_high = 4.
+contour_y_low = 0.
+contour_y_high = 2.
+
+plot_dir = os.path.join(saved_model_path,"posterior")
 mkdir_p(plot_dir)
 
-bins_mean = [contour_x_low+ibin*(contour_x_high-contour_x_low)/nContourBins for ibin in range(nContourBins+1)]
-bins_sigma = [contour_y_low+ibin*(contour_y_high-contour_y_low)/nContourBins for ibin in range(nContourBins+1)]
+bins_mean = [contour_x_low+ibin*(contour_x_high-contour_x_low)/n_contour_bins for ibin in range(n_contour_bins+1)]
+bins_sigma = [contour_y_low+ibin*(contour_y_high-contour_y_low)/n_contour_bins for ibin in range(n_contour_bins+1)]
 
-for i in range(nDraw):
-    plt.clf()
-    x,hists,pois,means,lnsigmas = generator.generate(1,(sample_size,))
-    plt.title(label='mean, sigma: '+str(means[0].numpy())+' '+str(lnsigmas[0].numpy()))
-    
-    inputs = model(hists)
+plt.clf()
+plt.title(label='mean, sigma: '+str(true_mean)+" "+str(true_sigma))
 
-    X, Y = np.meshgrid(bins_mean,bins_sigma)
-    ll = np.array([[model.calculate_loss(inputs,tf.constant([[X[j][i],Y[j][i]]],dtype=np.float32))[0] for i in range(nContourBins+1)] for j in range(nContourBins+1)])
-    c = plt.contour(X,Y,ll)
-    plt.plot(means,lnsigmas,marker='*',color='red')
-    plt.clabel(c, inline=1, fontsize=10)
-    plt.grid()
-    
-    plt.savefig(os.path.join(plot_dir,'toymc_'+str(i)+".png"))
+inputs = model(data)
+
+X, Y = np.meshgrid(bins_mean,bins_sigma)
+ll = np.array([[calculate_loss(inputs,tf.constant([[X[j][i],Y[j][i]]],dtype=np.float32),nparam,ncomp)[0] for i in range(n_contour_bins+1)] for j in range(n_contour_bins+1)])
+c = plt.contour(X,Y,ll)
+plt.plot(true_mean,true_sigma,marker='*',color='red')
+plt.clabel(c, inline=1, fontsize=10)
+plt.grid()
+plt.savefig(os.path.join(plot_dir,'plot2d.png'))
